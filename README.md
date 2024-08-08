@@ -1,2 +1,2 @@
-# automa-python
-SDK for Automa in Python
+# sdk-python
+Automa SDK for Python
