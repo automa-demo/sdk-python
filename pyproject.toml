@@ -1,0 +1,5 @@
+[tool.uv.workspace]
+members = ["packages/bot"]
+
+[dependency-groups]
+dev = ["pytest-cov~=6.0.0", "pytest~=8.3.5", "ruff~=0.9"]
