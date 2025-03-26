@@ -6,3 +6,5 @@ dist
 *.egg-info
 .coverage
 coverage.xml
+
+tests/fixture.tar.gz

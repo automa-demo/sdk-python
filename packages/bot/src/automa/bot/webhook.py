@@ -1,10 +1,8 @@
 import hashlib
 import hmac
-import json
-from typing import Any
 
 
-def verify_webhook(secret: str, signature: str, payload: Any) -> bool:
+def verify_webhook(secret: str, signature: str, payload: str) -> bool:
     if (
         not secret
         or not isinstance(secret, str)
@@ -19,9 +17,7 @@ def verify_webhook(secret: str, signature: str, payload: Any) -> bool:
     return hmac.compare_digest(generated_signature, signature)
 
 
-def generate_webhook_signature(secret: str, payload: Any) -> str:
-    payload_str = json.dumps(payload, separators=(",", ":"))
-
+def generate_webhook_signature(secret: str, payload: str) -> str:
     return hmac.new(
-        secret.encode("utf-8"), payload_str.encode("utf-8"), hashlib.sha256
+        secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256
     ).hexdigest()
