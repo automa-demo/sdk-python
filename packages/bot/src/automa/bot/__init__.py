@@ -1,8 +1,11 @@
 from ._client import AsyncAutoma, Automa
+from .resources import AsyncCodeResource, CodeResource
 
 __all__ = [
     "Automa",
     "AsyncAutoma",
+    "AsyncCodeResource",
+    "CodeResource",
 ]
 
 # Update the __module__ attribute for exported symbols so that
