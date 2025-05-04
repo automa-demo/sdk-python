@@ -1,5 +1,6 @@
 import tarfile
 from os import listdir, makedirs, path, remove
+from pathlib import Path
 from shutil import rmtree
 from subprocess import run
 from unittest.mock import AsyncMock, MagicMock
@@ -9,6 +10,7 @@ from src.automa.bot._client import AsyncAutoma, Automa
 from src.automa.bot.resources.code import AsyncCodeResource, CodeResource
 
 folder = "/tmp/automa/tasks/28"
+proposal_token_file = f"{folder}/.git/automa_proposal_token"
 
 
 @pytest.fixture
@@ -41,9 +43,9 @@ def async_code_resource():
 
 @pytest.fixture
 def fixture_tarfile():
-    tests_folder = path.dirname(path.dirname(__file__))
-    fixture = f"{tests_folder}/fixtures/download"
-    tarfile_path = f"{tests_folder}/fixture.tar.gz"
+    tests_folder = Path(__file__).parent.parent
+    fixture = tests_folder / "fixtures" / "download"
+    tarfile_path = tests_folder / "fixture.tar.gz"
 
     run(["git", "init"], cwd=fixture, capture_output=True)
     run(["git", "add", "."], cwd=fixture, capture_output=True)
@@ -55,12 +57,12 @@ def fixture_tarfile():
 
     with tarfile.open(tarfile_path, "w:gz") as tar:
         for subpath in listdir(fixture):
-            tar.add(f"{fixture}/{subpath}", arcname=subpath)
+            tar.add(fixture / subpath, arcname=subpath)
 
     yield tarfile_path
 
     remove(tarfile_path)
-    rmtree(f"{fixture}/.git", ignore_errors=True)
+    rmtree(fixture / ".git", ignore_errors=True)
 
 
 def test_cleanup(code_resource):
@@ -129,40 +131,41 @@ def test_download_invalid_token(code_resource):
     assert not path.exists(folder)
 
 
-# @pytest.mark.asyncio
-# async def test_download_async_invalid_token(async_code_resource):
-#     # Mock client response
-#     response_mock = MagicMock()
-#     response_mock.status_code = 403
-#     response_mock.is_error = True
-#     response_mock.json.return_value = {
-#         "message": "Task is older than 7 days and thus cannot be worked upon anymore"
-#     }
+@pytest.mark.asyncio
+async def test_download_async_invalid_token(async_code_resource):
+    # Mock client response
+    response_mock = MagicMock()
+    response_mock.status_code = 403
+    response_mock.is_error = True
+    response_mock.aread = AsyncMock()
+    response_mock.json.return_value = {
+        "message": "Task is older than 7 days and thus cannot be worked upon anymore"
+    }
 
-#     async_code_resource._client._client.stream.return_value.__enter__.return_value = (
-#         response_mock
-#     )
+    async_code_resource._client._client.stream.return_value.__aenter__.return_value = (
+        response_mock
+    )
 
-#     # Call download
-#     with pytest.raises(
-#         Exception,
-#         match="Task is older than 7 days and thus cannot be worked upon anymore",
-#     ):
-#         await async_code_resource.download({"task": {"id": 28, "token": "invalid"}})
+    # Call download
+    with pytest.raises(
+        Exception,
+        match="Task is older than 7 days and thus cannot be worked upon anymore",
+    ):
+        await async_code_resource.download({"task": {"id": 28, "token": "invalid"}})
 
-#     # Hits the API
-#     async_code_resource._client._client.stream.assert_called_once_with(
-#         "post",
-#         "/code/download",
-#         json={"task": {"id": 28, "token": "invalid"}},
-#         headers={
-#             "Accept": "application/gzip",
-#             "Content-Type": "application/json",
-#         },
-#     )
+    # Hits the API
+    async_code_resource._client._client.stream.assert_called_once_with(
+        "post",
+        "/code/download",
+        json={"task": {"id": 28, "token": "invalid"}},
+        headers={
+            "Accept": "application/gzip",
+            "Content-Type": "application/json",
+        },
+    )
 
-#     # Does not download code
-#     assert not path.exists(folder)
+    # Does not download code
+    assert not path.exists(folder)
 
 
 def test_download(fixture_tarfile, code_resource):
@@ -203,7 +206,7 @@ def test_download(fixture_tarfile, code_resource):
     ]
 
     # Saves proposal token
-    with open(f"{folder}/.git/automa_proposal_token", "r") as f:
+    with open(proposal_token_file, "r") as f:
         assert f.read() == "ghijkl"
 
 
@@ -251,14 +254,14 @@ async def test_download_async(fixture_tarfile, async_code_resource):
     ]
 
     # Saves proposal token
-    with open(f"{folder}/.git/automa_proposal_token", "r") as f:
+    with open(proposal_token_file, "r") as f:
         assert f.read() == "ghijkl"
 
 
 def test_propose_no_token(fixture_tarfile, code_resource):
     test_download(fixture_tarfile, code_resource)
 
-    remove(f"{folder}/.git/automa_proposal_token")
+    remove(proposal_token_file)
 
     with pytest.raises(Exception, match="Failed to read the stored proposal token"):
         code_resource.propose({"task": {"id": 28, "token": "abcdef"}})
@@ -271,7 +274,7 @@ def test_propose_no_token(fixture_tarfile, code_resource):
 async def test_propose_async_no_token(fixture_tarfile, async_code_resource):
     await test_download_async(fixture_tarfile, async_code_resource)
 
-    remove(f"{folder}/.git/automa_proposal_token")
+    remove(proposal_token_file)
 
     with pytest.raises(Exception, match="Failed to read the stored proposal token"):
         await async_code_resource.propose({"task": {"id": 28, "token": "abcdef"}})
